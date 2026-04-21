@@ -602,28 +602,8 @@ def main() -> None:
     try:
         if st.session_state.stage == "define_problem":
             st.markdown("## Step 1 — Define the problem")
-            if not st.session_state.raw_problem_input:
-                st.markdown("I have your context. I only need a few missing details before I generate ideas.")
-                st.markdown("1. What product, service, campaign, or business problem are you working on?")
-                st.markdown("2. Who is the target audience and in which market or geography?")
-                st.markdown("3. What is the main goal you want to achieve?")
-                st.markdown("You can answer in one paragraph or paste the template below.")
-                user_problem = st.text_area("Step 1 input", value=st.session_state.step1_answer, height=220, placeholder=BRIEF_TEMPLATE)
-                st.session_state.step1_answer = user_problem
-                if st.button("Continue from Step 1", type="primary"):
-                    if not user_problem.strip():
-                        st.error("Please provide the problem context first.")
-                    else:
-                        st.session_state.raw_problem_input = user_problem.strip()
-                        st.session_state.missing_details = [
-                            "What product, service, campaign, or business problem are you working on?",
-                            "Who is the target audience and in which market or geography?",
-                            "What is the main goal you want to achieve?",
-                        ]
-                        st.rerun()
-                return
-
             st.markdown("I have your context. I only need a few missing details before I generate ideas.")
+        
             missing = st.session_state.missing_details or [
                 "What product, service, campaign, or business problem are you working on?",
                 "Who is the target audience and in which market or geography?",
@@ -631,20 +611,42 @@ def main() -> None:
             ]
             for i, q in enumerate(missing[:5], start=1):
                 st.markdown(f"{i}. {q}")
+        
             st.markdown("You can answer in one paragraph or paste the template below.")
-            extra = st.text_area("Step 1 details", height=220, placeholder=BRIEF_TEMPLATE)
+        
+            user_problem = st.text_area(
+                "Step 1 details",
+                value=st.session_state.step1_answer,
+                height=220,
+                placeholder=BRIEF_TEMPLATE,
+            )
+            st.session_state.step1_answer = user_problem
+        
             if st.button("Generate Step 2", type="primary"):
-                combined_input = f"{st.session_state.raw_problem_input}\n\nAdditional user input:\n{extra.strip()}"
-                analysis = _response_json(_problem_analysis_prompt(combined_input, st.session_state.language))
-                st.session_state.raw_problem_input = combined_input
-                st.session_state.problem_summary = analysis.get("summary", "")
-                st.session_state.problem_brief = analysis.get("summary", "") or combined_input
-                st.session_state.missing_details = analysis.get("missing_details", [])
-                if not analysis.get("is_complete", False):
-                    st.warning("I still need a little more detail before generating ideas.")
-                    st.rerun()
-                _regenerate_step2()
-                st.rerun()
+                if not user_problem.strip():
+                    st.error("Please provide the problem context first.")
+                else:
+                    if st.session_state.raw_problem_input:
+                        combined_input = (
+                            f"{st.session_state.raw_problem_input}\n\nAdditional user input:\n{user_problem.strip()}"
+                        )
+                    else:
+                        combined_input = user_problem.strip()
+        
+                    analysis = _response_json(
+                        _problem_analysis_prompt(combined_input, st.session_state.language)
+                    )
+        
+                    st.session_state.raw_problem_input = combined_input
+                    st.session_state.problem_summary = analysis.get("summary", "")
+                    st.session_state.problem_brief = analysis.get("summary", "") or combined_input
+                    st.session_state.missing_details = analysis.get("missing_details", [])
+        
+                    if not analysis.get("is_complete", False):
+                        st.warning("I still need a little more detail before generating ideas.")
+                    else:
+                        _regenerate_step2()
+                        st.rerun()
             return
 
         if st.session_state.stage == "choose_three":
