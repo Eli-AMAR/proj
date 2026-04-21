@@ -14,6 +14,7 @@ APP_TITLE = "Creative Agent | Guided Venture & Campaign Workflow"
 APP_HEADER = "Creative Agent"
 SUPER_URL = "https://super.cycls.ai/"
 
+# english and arabic templates of Step 1.
 TEMPLATES = {
     "english": """## Problem
 What are we trying to solve?
@@ -59,6 +60,7 @@ What must we avoid or respect?
 """,
 }
 
+# UI for English and Arabic.
 TEXT = {
     "english": {
         "intro": "A guided workflow for choosing the right idea, not just generating ideas.\n\nFlow: define problem → generate 5 ideas → vote → shortlist 3 → compare → choose 1 → plan → handoff to Super.",
@@ -198,6 +200,7 @@ At Step 2, Step 3, and Step 4 you can generate a fresh new Step 2 if you want a 
     },
 }
 
+# These agents vote and evaluate ideas from different business perspectives.
 EVALUATOR_AGENTS = [
     "Strategist",
     "Creative Director",
@@ -206,6 +209,7 @@ EVALUATOR_AGENTS = [
     "Operator / Feasibility Reviewer",
 ]
 
+# These agents generate the five different creative directions in Step 2.
 IDEATION_AGENTS = [
     "Trend Hunter",
     "Cultural Storyteller",
@@ -214,18 +218,19 @@ IDEATION_AGENTS = [
     "Experience Designer",
 ]
 
+#Intro for the model so he respond in the good language
 LANGUAGE_GUIDE = {
     "english": "Write the full response in English.",
     "arabic": "Write the full response in Arabic. Use clear modern Arabic; Saudi flavor is welcome when helpful.",
 }
 
-
+# Return a translated UI (specificaly for Arabic see the variable TEXT line 65)
 def tr(key: str, **kwargs: Any) -> str:
     lang = st.session_state.get("language", "english") if hasattr(st, "session_state") else "english"
     text = TEXT.get(lang, TEXT["english"]).get(key, TEXT["english"].get(key, key))
     return text.format(**kwargs) if kwargs else text
 
-
+# Return the current Step 1 template based on the selected language.
 def current_template() -> str:
     lang = st.session_state.get("language", "english") if hasattr(st, "session_state") else "english"
     return TEMPLATES.get(lang, TEMPLATES["english"])
@@ -248,14 +253,14 @@ def _client() -> OpenAI:
         raise RuntimeError("Missing OPENAI_API_KEY. Add it in Streamlit secrets or environment variables.")
     return OpenAI(api_key=api_key)
 
-
+# Choose the model from secrets or environment, with as default gpt-5.4-mini.
 def _model() -> str:
     try:
         return st.secrets.get("OPENAI_MODEL", os.getenv("OPENAI_MODEL", "gpt-5.4-mini"))
     except Exception:
         return os.getenv("OPENAI_MODEL", "gpt-5.4-mini")
 
-
+# Send a prompt to the model and return text , can do web search
 def _response_text(prompt: str, *, use_web_search: bool = False) -> str:
     kwargs: dict[str, Any] = {
         "model": _model(),
@@ -269,7 +274,7 @@ def _response_text(prompt: str, *, use_web_search: bool = False) -> str:
         return output_text
     raise RuntimeError("Model did not return output_text.")
 
-
+#Extract JSON from a model response
 def _extract_json(text: str) -> Any:
     text = text.strip()
     if not text:
@@ -293,7 +298,7 @@ def _extract_json(text: str) -> Any:
                 continue
     raise ValueError(f"Could not parse JSON from model output:\n{text[:1000]}")
 
-
+#get model output and parse it into Python data.
 def _response_json(prompt: str, *, use_web_search: bool = False) -> Any:
     return _extract_json(_response_text(prompt, use_web_search=use_web_search))
 
@@ -301,7 +306,7 @@ def _response_json(prompt: str, *, use_web_search: bool = False) -> Any:
 def _language_line(language: str) -> str:
     return LANGUAGE_GUIDE.get(language, LANGUAGE_GUIDE["english"])
 
-
+# Prompt for Step 1: decide whether the response is complete enough to move to step 2 idea generation.
 def _problem_analysis_prompt(message: str, language: str) -> str:
     return f"""
 You are checking whether the user gave enough detail to define a business / campaign / product problem.
@@ -332,7 +337,7 @@ User input / accumulated context:
 {message}
 """.strip()
 
-
+# Prompt for Step 2
 def _generate_ideas_prompt(state: dict[str, Any]) -> str:
     return f"""
 You are running Step 2 of a guided ideation workflow.
@@ -367,7 +372,7 @@ Rules:
 - If the problem is in Arabic, stay naturally Arabic-first.
 """.strip()
 
-
+# Prompt for the first voting round: each evaluator agent selects the top two ideas.
 def _vote_top_two_prompt(state: dict[str, Any]) -> str:
     return f"""
 You are running the evaluator vote for Step 2.
@@ -394,7 +399,7 @@ Return JSON only:
 }}
 """.strip()
 
-
+#Prompt for Step 3: compare the three shortlisted ideas on business and execution criteria.
 def _compare_shortlist_prompt(state: dict[str, Any]) -> str:
     shortlisted = [idea for idea in state["ideas"] if idea["id"] in state["shortlisted"]]
     return f"""
@@ -438,7 +443,7 @@ Return JSON only with this exact shape:
 }}
 """.strip()
 
-
+# Prompt for the final voting round: each evaluator chooses the single best shortlisted idea.
 def _vote_best_prompt(state: dict[str, Any]) -> str:
     return f"""
 You are running the evaluator vote for Step 3.
@@ -465,7 +470,7 @@ Return JSON only:
 }}
 """.strip()
 
-
+# Prompt for Step 4: generate an execution plan for the chosen idea.
 def _plan_prompt(state: dict[str, Any]) -> str:
     chosen = state.get("selected_idea") or {}
     comparison = next((x for x in state["comparisons"] if x.get("id") == chosen.get("id")), {})
@@ -496,7 +501,7 @@ Write a clear markdown plan with these sections:
 Keep it practical and operator-ready.
 """.strip()
 
-
+# Build the final prompt that the user can paste into Super.
 def _super_prompt(state: dict[str, Any]) -> str:
     chosen = state.get("selected_idea") or {}
     comparison = next((x for x in state["comparisons"] if x.get("id") == chosen.get("id")), {})
@@ -528,7 +533,7 @@ Start with:
 - the first 5 tasks in priority order
 """.strip()
 
-
+# Count how many votes each idea received in a given round.
 def _count_votes(vote_payload: list[dict[str, Any]], key: str) -> dict[int, int]:
     counts: dict[int, int] = {}
     for item in vote_payload:
@@ -589,6 +594,7 @@ def _reset_workflow(keep_language: bool = True) -> None:
     st.session_state.error = ""
 
 
+# Regenerate a new Step 2
 def _regenerate_step2() -> None:
     state = st.session_state
     ideas_payload = _response_json(_generate_ideas_prompt(state))
@@ -606,7 +612,7 @@ def _regenerate_step2() -> None:
     state.super_prompt = ""
     state.stage = "choose_three"
 
-
+# Render the Step 5
 def _copy_open_html(prompt: str) -> str:
     encoded = base64.b64encode(prompt.encode("utf-8")).decode("ascii")
     text_align = "right" if is_arabic() else "left"
@@ -617,7 +623,7 @@ def _copy_open_html(prompt: str) -> str:
 <p style="color:#e5e7eb;text-align:{text_align};">{tr('recommended_flow')}</p>
 <p style="color:#9ca3af;text-align:{text_align};">{tr('auto_copy')}</p>'''
 
-
+# Render the idea list, first-round votes, shortlist controls, and Step 2 actions
 def _render_step2() -> None:
     st.markdown(tr("step1_title"))
     st.markdown(tr("problem_summary", summary=st.session_state.problem_summary))
@@ -667,7 +673,7 @@ def _render_step2() -> None:
             st.session_state.stage = "choose_one"
             st.rerun()
 
-
+# Render the comparison view, final choice controls, and the option to go back to a new Step 2
 def _render_step3() -> None:
     st.markdown(tr("step3_title"))
     for comp in st.session_state.comparisons:
@@ -716,6 +722,7 @@ def _render_step3() -> None:
         st.rerun()
 
 
+# Render the execution plan and step 5
 def _render_step4_and_5() -> None:
     st.markdown(tr("step4_title"))
     st.markdown(st.session_state.plan_markdown)
