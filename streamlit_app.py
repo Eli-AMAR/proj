@@ -454,8 +454,8 @@ def _copy_open_html(prompt: str) -> str:
   <button onclick=\"navigator.clipboard.writeText(atob('{encoded}')).then(() => this.innerText='Copied!')\" style=\"padding:10px 16px;border:none;border-radius:10px;background:#10a37f;color:white;font-weight:600;cursor:pointer;\">Copy Prompt</button>
   <a href=\"{SUPER_URL}\" target=\"_blank\" rel=\"noopener noreferrer\" onclick=\"navigator.clipboard.writeText(atob('{encoded}'))\" style=\"padding:10px 16px;border-radius:10px;background:#2563eb;color:white;text-decoration:none;font-weight:600;display:inline-block;\">Open Super</a>
 </div>
-<p><strong>Recommended flow:</strong> click <strong>Copy Prompt</strong>, then <strong>Open Super</strong>, paste, and press Enter.</p>
-<p><em>The prompt is auto-copied again when you click Open Super.</em></p>"""
+<p style="color:#e5e7eb;"><strong>Recommended flow:</strong> click <strong>Copy Prompt</strong>, then <strong>Open Super</strong>, paste, and press Enter.</p>
+<p style="color:#9ca3af;"><em>The prompt is auto-copied again when you click Open Super.</em></p>"""
 
 
 def _render_step2() -> None:
